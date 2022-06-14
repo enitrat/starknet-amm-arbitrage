@@ -5,14 +5,13 @@ from starkware.cairo.common.math_cmp import is_not_zero, is_nn, is_le
 from starkware.cairo.common.bool import TRUE, FALSE
 
 struct Pair:
-    member reserve_0 : felt
     member reserve_1 : felt
+    member reserve_2 : felt
 end
 
 ##
-# Given 2 pool pairs characterized by reserve_0 and reserve_1, returns the optimal amount of token to use for arbitrage.
+# Given 2 pool pairs characterized by reserve_1 and reserve_2, returns the optimal amount of token to use for arbitrage.
 ##
-@view
 func calc_optimal_amount{range_check_ptr}(pair1 : Pair, pair2 : Pair) -> (amount : felt):
     # Only working with 18 decimals for now. But we'll run into an overflow problem if we use all 18 decimals for our calculation.
     # For that matter we'll remove as much useless decimals as possible while keeping a correct precision.
@@ -21,10 +20,10 @@ func calc_optimal_amount{range_check_ptr}(pair1 : Pair, pair2 : Pair) -> (amount
     alloc_locals
 
     let (divider) = find_reserve_divider(pair1, pair2)
-    let (a1, _) = unsigned_div_rem(pair1.reserve_0, divider)
-    let (a2, _) = unsigned_div_rem(pair2.reserve_0, divider)
-    let (b1, _) = unsigned_div_rem(pair1.reserve_1, divider)
-    let (b2, _) = unsigned_div_rem(pair2.reserve_1, divider)
+    let (a1, _) = unsigned_div_rem(pair1.reserve_1, divider)
+    let (a2, _) = unsigned_div_rem(pair2.reserve_1, divider)
+    let (b1, _) = unsigned_div_rem(pair1.reserve_2, divider)
+    let (b2, _) = unsigned_div_rem(pair2.reserve_2, divider)
 
     # quadratic equation ax^2 + bx + c with a,b,c :
     tempvar a = a1 * b1 - a2 * b2
@@ -35,9 +34,12 @@ func calc_optimal_amount{range_check_ptr}(pair1 : Pair, pair2 : Pair) -> (amount
     let (x1, x2) = solve_quadratic_equation(a, b, c)
     let x1 = x1 * divider
     let x2 = x2 * divider
-    let (best_amt) = lowest_valid_root(x1, x2, pair1.reserve_1, pair2.reserve_1)
+    let (best_amt) = lowest_valid_root(x1, x2, pair1.reserve_2, pair2.reserve_2)
     return (best_amt)
 end
+
+
+    # TODO Implement a method to dynamically check which reserve is smaller
 
 ##
 # Finds the divider to use for the calculation of the optimal amount.
@@ -46,10 +48,10 @@ end
 ##
 func find_reserve_divider{range_check_ptr}(pair1 : Pair, pair2 : Pair) -> (lowest_reserve : felt):
     alloc_locals
-    let a1 = pair1.reserve_0
-    let a2 = pair2.reserve_0
-    let b1 = pair1.reserve_1
-    let b2 = pair2.reserve_1
+    let a1 = pair1.reserve_1
+    let a2 = pair2.reserve_1
+    let b1 = pair1.reserve_2
+    let b2 = pair2.reserve_2
 
     # Start by determining which reserve is the smallest
     let (is_le_a1_b1) = is_le(a1, b1)
