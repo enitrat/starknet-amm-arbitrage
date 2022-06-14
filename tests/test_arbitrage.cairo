@@ -2,7 +2,7 @@
 
 from src.IAmm import IAmm
 from lib.utils import parse_units
-from starkware.cairo.common.math import assert_in_range
+from starkware.cairo.common.math import assert_in_range, unsigned_div_rem
 from starkware.cairo.common.math_cmp import is_le
 from starkware.cairo.common.bool import TRUE, FALSE
 # Setup a test with an active reserve for test_token
@@ -69,7 +69,7 @@ func test_arbitrage{syscall_ptr : felt*, range_check_ptr}():
     let (optimal_amt) = calc_optimal_amount(pair_0, pair_1)
 
     # TODO Implement a method to dynamically check which reserve is smaller
-    # Here, we know that we'll do B=>A in pool2, A=>B in pool1 and sell the rest of B in pool2
+    # Here, we know that we'll do B=>A in pool2, A=>B in pool1 and sell init_b in pool2 to keep the difference
     let (balance_a) = IAmm.get_user_balance(amm1, TOKEN_A)
     let (balance_b) = IAmm.get_user_balance(amm1, TOKEN_B)
     local swap_amount : felt
@@ -79,12 +79,18 @@ func test_arbitrage{syscall_ptr : felt*, range_check_ptr}():
     else:
         swap_amount = balance_b
     end
-    %{ print(ids.optimal_amt, ids.swap_amount) %}
 
+    # Sell swap_amount b tokens to get a tokens
     let (temp_a) = IAmm.swap(amm2, TOKEN_B, TOKEN_A, swap_amount)
+    # Sell all received a_tokens to get b_tokens
     let (temp_b) = IAmm.swap(amm1, TOKEN_A, TOKEN_B, temp_a)
-    let (profit_a) = IAmm.swap(amm2, TOKEN_B, TOKEN_A, temp_b)
+    # Repay first swap and keep the difference
+    IAmm.swap(amm2, TOKEN_B, TOKEN_A, swap_amount)
+    let profit_b = temp_b - swap_amount
+    let (profit_percent_e3, _) = unsigned_div_rem((profit_b) * 100 * 10 ** 3, (balance_b))
+    assert_in_range(profit_percent_e3, 17400, 17500)
+    %{ print(" Profit : ", ids.profit_percent_e3, "e-3 %") %}
+    %{ print(" Profit : ", ids.profit_b*10**-18, "tokens ") %}
 
-    %{ print(ids.temp_a,ids.temp_b,ids.profit_a) %}
     return ()
 end
