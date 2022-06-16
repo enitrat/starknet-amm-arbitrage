@@ -5,6 +5,12 @@ This repo is a proof of concept of how to do this.
 
 Note : This repo is purely a PoC and is not intended to be used elsewhere. The calculations are totally unsafe, not compatible with ERC20 and not tested on any live AMM. It is only provided for learning purposes and needs to be improved a lot to be efficient.
 Besides that, it's still WIP.
+
+Let's say that we want to arbitrage a pair tokenA/tokenB. This pair must exists on multiple Starknet AMM protocols.
+We'll be calling tokenA the "quote token" and tokenB the "base token". The goal is to increase our holdings of base token.
+
+Let's say that price of base/quote on $Pair_0$ is lower than the price on $Pair_1$. What you want to do is 
+swap token0 -> token1 on pair 0 and swap token1 -> token0 on pair 1, sell the token0 on $Pair_0$ and keep the difference.
 ## Maths
 
 The most important part of this bot is the underlying math to detecte opportunities.
@@ -19,16 +25,15 @@ When you swap a token a for a token b, the reserves evolve respecting the consta
 
 $(a + \Delta a) * (b - \Delta b) = a * b$
 
-Let's say that price on $Pair_0$ is lower than price on $Pair_1$. What you want to do is 
-swap token_a -> token_b on pair 0 and swap token_b -> token_a on pair 1 and keep the difference.
+
 
 ![](img.png)
 
 We can write this as :
 
-$ \Delta a_1 = \frac{ \Delta b_1*a_1}  {b_1 - \Delta b_1}$, $ \Delta a_1$ being the required token_a input to get x
+$ \Delta a_1 = \frac{ \Delta b_1*a_1}  {b_1 - \Delta b_1}$, $ \Delta a_1$ being the required token0 input to get x
 
-$ \Delta a_2 = \frac{ \Delta b_2*a_2}  {b_1 + \Delta b_2}$  $ \Delta a_2$ being the maximum output given x token_b as input
+$ \Delta a_2 = \frac{ \Delta b_2*a_2}  {b_1 + \Delta b_2}$  $ \Delta a_2$ being the maximum output given x token1 as input
 
 We want to have $\Delta b_1 = \Delta b_2$ since we don't want to keep quote tokens after arbitraging.
 
@@ -60,8 +65,8 @@ $0 < x < b_1$
 
 $ x < b_2$
 
-$x$ being the amount of token_b that we need to sell on $Pair_0$ to get token_a, 
-sell these token_a on $Pair_1$ to get token_b and keep the difference.
+$x$ being the amount of token0 that we need to sell on $Pair_0$ to get y1 token0, 
+sell these token0 on $Pair_1$ to get y2 token1 and the profit is the y1-y2.
 
 ## Code
 

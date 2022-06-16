@@ -3,17 +3,13 @@
 from starkware.cairo.common.cairo_builtins import HashBuiltin
 from starkware.starknet.common.syscalls import storage_read, storage_write
 from starkware.cairo.common.math import unsigned_div_rem, assert_nn, assert_not_zero
-from starkware.cairo.common.math_cmp import is_nn, is_not_zero
+from starkware.cairo.common.math_cmp import is_nn, is_not_zero, is_le
 from starkware.starknet.common.syscalls import get_caller_address
 from starkware.cairo.common.bool import TRUE, FALSE
-
-struct Pair:
-    member reserve_1 : felt
-    member reserve_2 : felt
-end
+from lib.DataTypes import Pair
 
 @storage_var
-func _pair(token_a : felt, token_b : felt) -> (pair : Pair):
+func _pair(token0 : felt, token1 : felt) -> (pair : Pair):
 end
 
 @storage_var
@@ -22,12 +18,12 @@ end
 
 @view
 func get_reserves{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-    token_a : felt, token_b : felt
-) -> (reserve_1 : felt, reserve_2 : felt, inversed : felt):
+    token0 : felt, token1 : felt
+) -> (reserve0 : felt, reserve1 : felt, inversed : felt):
     alloc_locals
-    let (storage_pair) = _pair.read(token_a, token_b)
-    let (pair_exists) = is_not_zero(storage_pair.reserve_1)  # Pair is not initialized if reserve_1 is zero
-    let (inversed_pair) = _pair.read(token_b, token_a)
+    let (storage_pair) = _pair.read(token0, token1)
+    let (pair_exists) = is_not_zero(storage_pair.reserve0)  # Pair is not initialized if reserve0 is zero
+    let (inversed_pair) = _pair.read(token1, token0)
     local inversed : felt
     if pair_exists == FALSE:
         tempvar temp_pair = inversed_pair
@@ -37,15 +33,37 @@ func get_reserves{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_
         inversed = FALSE
     end
     local pair : Pair = temp_pair
-    assert_not_zero(pair.reserve_1)
-    return (pair.reserve_1, pair.reserve_2, inversed)
+    assert_not_zero(pair.reserve0)
+    return (pair.reserve0, pair.reserve1, inversed)
 end
 
+##
+# Sets the reserve of a pair
+# @dev token0 is ALWAYS lower than token1
+##
 @external
 func set_reserves{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-    token_a : felt, token_b : felt, reserve_1 : felt, reserve_2 : felt
+    token0 : felt, token1 : felt, reserve0 : felt, reserve1 : felt
 ):
-    _pair.write(token_a, token_b, Pair(reserve_1, reserve_2))
+    alloc_locals
+    let (is_0_lower_1) = is_le(token0, token1)
+    local _token0 : felt
+    local _token1 : felt
+    local _reserve0 : felt
+    local _reserve1 : felt
+    if is_0_lower_1 == FALSE:
+        _token0 = token1
+        _token1 = token0
+        _reserve0 = reserve1
+        _reserve1 = reserve0
+    else:
+        _token0 = token0
+        _token1 = token1
+        _reserve0 = reserve0
+        _reserve1 = reserve1
+    end
+
+    _pair.write(_token0, _token1, Pair(_token0, _token1, _reserve0, _reserve1))
     return ()
 end
 
@@ -72,15 +90,15 @@ func swap{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
     token_from : felt, token_to : felt, amount : felt
 ) -> (res : felt):
     alloc_locals
-    let (reserve_1, reserve_2, inversed) = get_reserves(token_from, token_to)
+    let (reserve0, reserve1, inversed) = get_reserves(token_from, token_to)
     local reserveFrom : felt
     local reserveTo : felt
     if inversed == FALSE:
-        reserveFrom = reserve_1
-        reserveTo = reserve_2
+        reserveFrom = reserve0
+        reserveTo = reserve1
     else:
-        reserveFrom = reserve_2
-        reserveTo = reserve_1
+        reserveFrom = reserve1
+        reserveTo = reserve0
     end
     let (local amount_to, _) = unsigned_div_rem(reserveTo * amount, reserveFrom + amount)
     let (caller_address) = get_caller_address()

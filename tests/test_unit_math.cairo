@@ -1,18 +1,21 @@
 %lang starknet
 
-from src.basic_arbitrage import (
+from src.Arbitrageur import (
     solve_quadratic_equation,
     lowest_valid_root,
     calc_optimal_amount,
-    Pair,
     _find_divider,
     find_reserve_divider,
 )
 
 from lib.utils import parse_units
+from lib.DataTypes import Pair, OrderedReserves
 
 from starkware.cairo.common.pow import pow
 from starkware.cairo.common.math import assert_in_range, assert_le
+
+const token0 = 42
+const token1 = 1337
 
 @view
 func test_quadratic_solving_ok{range_check_ptr}():
@@ -81,14 +84,27 @@ func test_optimal_amount{range_check_ptr}():
     let (b1) = parse_units(10, 18)
     let (a2) = parse_units(6000, 18)
     let (b2) = parse_units(10, 18)
-    let pair1 = Pair(a1, b1)  # 5k tokens with 18 decimals
-    let pair2 = Pair(a2, b2)  # 6k tokens with 18 decimals
-    let (amount) = calc_optimal_amount(pair1, pair2)
+    let ordered_reserves = OrderedReserves(a1, b1, a2, b2)  # ordered with pair1 = lower_pair, pair2=higher_pair
+    let (amount) = calc_optimal_amount(ordered_reserves)
     # a = - 10000, b= 2200000, c =-1000000
 
     # smallest root should be something around x≈0.45549
     # remember that we're operating w/ 18 decimals
     assert_in_range(amount, 4554 * 10 ** 14, 4555 * 10 ** 14)
+    return ()
+end
+
+@view
+func test_optimal_amount_ko{range_check_ptr}():
+    alloc_locals
+    let (local format_decimals) = pow(10, 18)
+    let (a1) = parse_units(6000, 18)
+    let (b1) = parse_units(10, 18)
+    let (a2) = parse_units(5000, 18)
+    let (b2) = parse_units(10, 18)
+    let ordered_reserves = OrderedReserves(a1, b1, a2, b2)  # wrong order because price(pair1) > price(pair2)
+    %{ expect_revert(error_message="Incorrect input") %}
+    let (amount) = calc_optimal_amount(ordered_reserves)
     return ()
 end
 
@@ -114,9 +130,10 @@ func test_find_reserve_divider{range_check_ptr}():
     let (b1) = parse_units(148, 18)
     let (a2) = parse_units(2019, 18)
     let (b2) = parse_units(139, 18)
-    let pair1 = Pair(a1, b1)  # 5k tokens with 18 decimals
-    let pair2 = Pair(a2, b2)  # 6k tokens with 18 decimals
-    let (divider) = find_reserve_divider(pair1, pair2)
+    let pair1 = Pair(token0, token1, a1, b1)  # 5k tokens with 18 decimals
+    let pair2 = Pair(token0, token1, a2, b2)  # 6k tokens with 18 decimals
+    let ordered_reserves = OrderedReserves(a1, b1, a2, b2)  # ordered with pair1 = lower_pair, pair2=higher_pair
+    let (divider) = find_reserve_divider(ordered_reserves)
 
     assert divider = 10 ** 16
     return ()
