@@ -1,6 +1,15 @@
 %lang starknet
-from src.Arbitrageur import calc_optimal_amount, add_base_token, get_base_token, get_ordered_pairs
+from src.Arbitrageur import (
+    calc_optimal_amount,
+    add_base_token,
+    get_base_token,
+    get_ordered_pairs,
+    get_profit,
+    get_amount_out,
+    get_amount_in,
+)
 from lib.DataTypes import Pair, OrderedReserves
+from lib.utils import parse_units
 from starkware.cairo.common.cairo_builtins import HashBuiltin
 
 const token_x = 42
@@ -106,6 +115,45 @@ func test_base_token_ko_token_order{
     return ()
 end
 
+@view
+func test_get_profit{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}():
+    alloc_locals
+    add_base_token(token_y)  # base token is token1
+    let (local p1r0) = parse_units(6000, 18)
+    let (p1r1) = parse_units(10, 18)
+    let (p2r0) = parse_units(5000, 18)
+    let (p2r1) = parse_units(10, 18)
+
+    # pair1 has a lower price quote/base than pair2
+    let pair1 = Pair(token_x, token_y, p1r0, p1r1)
+    let pair2 = Pair(token_x, token_y, p2r0, p2r1)
+    let (profit, profit_rate) = get_profit(pair1, pair2)
+    %{ print("profit : ",ids.profit*10**-18, "profit_rate : ", ids.profit_rate/1000) %}
+    return ()
+end
+
+@view
+func test_get_amount_in{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}():
+    alloc_locals
+    let (amount_out) = parse_units(600, 18)
+    let (reserve_in) = parse_units(10, 18)
+    let (reserve_out) = parse_units(6000, 18)
+    let (output) = get_amount_in(amount_out, reserve_in, reserve_out)
+    assert output = 1111100000000000000  # makes sense
+    return ()
+end
+
+@view
+func test_get_amount_out{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}():
+    alloc_locals
+    let (amount_in) = parse_units(600, 18)
+    let (reserve_in) = parse_units(5000, 18)
+    let (reserve_out) = parse_units(10, 18)
+    let (output) = get_amount_out(amount_in, reserve_in, reserve_out)
+    assert output = 9836065573770491803  # makes sense
+    return ()
+end
+
 # @view
 # func test_get_ordered_tokens{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}():
 #     add_base_token(token_y)
@@ -118,7 +166,7 @@ end
 #     assert higher_pair = pair2
 #     assert ordered_reserves = OrderedReserves(5000, 10, 6000, 10)
 
-#     # order 2
+# # order 2
 #     let pair1 = Pair(token_x, token_y, 6000, 10)  # higher 1b = 600a
 #     let pair2 = Pair(token_x, token_y, 5000, 10)  # lower 1b = 500a
 #     let (lower_pair, higher_pair, ordered_reserves) = get_ordered_pairs(pair1, pair2)
@@ -126,7 +174,7 @@ end
 #     assert higher_pair = pair1
 #     assert ordered_reserves = OrderedReserves(5000, 10, 6000, 10)
 
-#     # base istoken0
+# # base istoken0
 #     let pair1 = Pair(token_y, token_high, 10, 6000)  # higher 1b = 600a
 #     let pair2 = Pair(token_y, token_high, 10, 5000)  # lower 1b = 500a
 #     let (lower_pair, higher_pair, ordered_reserves) = get_ordered_pairs(pair1, pair2)
@@ -134,7 +182,7 @@ end
 #     assert higher_pair = pair1
 #     assert ordered_reserves = OrderedReserves(5000, 10, 6000, 10)
 
-#     # ## With price < 0
+# # ## With price < 0
 #     # and equal remainders
 #     let pair1 = Pair(token_x, token_y, 10, 5000)  # higher 1b = 1/500a
 #     let pair2 = Pair(token_x, token_y, 10, 6000)  # lower 1b = 1/600a
@@ -143,7 +191,7 @@ end
 #     assert higher_pair = pair1
 #     assert ordered_reserves = OrderedReserves(10, 5000, 10, 6000)
 
-#     # and non-equal remainders
+# # and non-equal remainders
 #     let pair1 = Pair(token_x, token_y, 100, 5000)  # higher 1b = 1/50a
 #     let pair2 = Pair(token_x, token_y, 10, 6000)  # lower 1b = 1/600a
 #     let (lower_pair, higher_pair, ordered_reserves) = get_ordered_pairs(pair1, pair2)
@@ -151,7 +199,7 @@ end
 #     assert higher_pair = pair1
 #     assert ordered_reserves = OrderedReserves(10, 6000, 100, 5000)
 
-#     # ## With one price>0, one price <0
+# # ## With one price>0, one price <0
 #     let pair1 = Pair(token_y, token_high, 1000, 10)  # higher 1b = 1/100a
 #     let pair2 = Pair(token_y, token_high, 10, 6000)  # lower 1b = 600a
 #     let (lower_pair, higher_pair, ordered_reserves) = get_ordered_pairs(pair1, pair2)

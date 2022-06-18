@@ -17,6 +17,8 @@ from lib.cairo_math_64x61.contracts.Math64x61 import (
     Math64x61_toFelt,
 )
 
+from lib.utils import parse_units
+
 ##
 # Our contract will have arbitrage enabled only for specific tokens
 ##
@@ -40,6 +42,29 @@ func remove_base_token{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_c
     return ()
 end
 
+func get_profit{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    pair1 : Pair, pair2 : Pair
+) -> (net_profit : felt, profit_rate : felt):
+    alloc_locals  # otherwise syscall_ptr is not revoked
+    let (_, _, ordered_reserves) = get_ordered_pairs(pair1, pair2)
+
+    let (x) = calc_optimal_amount(ordered_reserves)
+    # %{ print(ids.x*10**-18) %}
+    assert_nn(x)
+    # How to get profit : Call getAmountIn w/ optimal amount as input, call getAmountOut w/ swap result as input
+    # profit is the difference between the last two calls
+
+    let (local initial_base) = get_amount_in(x, ordered_reserves.a1, ordered_reserves.b1)
+    # %{ print(ids.initial_base*10**-18) %}
+    let (total_base) = get_amount_out(x, ordered_reserves.b2, ordered_reserves.a2)
+    # %{ print(ids.total_base*10**-18) %}
+    let net_profit = total_base - initial_base
+    # %{ print(ids.net_profit*10**-18) %}
+    let (profit_rate, _) = unsigned_div_rem(net_profit * 1000, initial_base)
+
+    return (net_profit, profit_rate)
+end
+
 # Returns 1 if value != 0. Returns 0 otherwise.
 func is_zero(value) -> (res):
     if value == 0:
@@ -47,15 +72,6 @@ func is_zero(value) -> (res):
     end
 
     return (res=0)
-end
-
-func get_ordered_values{range_check_ptr}(value1, value2) -> (lower : felt, higher : felt):
-    alloc_locals  # otherwise revoked
-    let (is_v1_gt_v2) = is_le(value1, value2)
-    if is_v1_gt_v2 == TRUE:
-        return (value2, value1)
-    end
-    return (value1, value2)
 end
 
 ##
@@ -69,17 +85,18 @@ func get_ordered_pairs{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_c
     let (base_token) = get_base_token(pair1, pair2)
     let (is_base_token0) = is_zero(base_token - pair1.token0)
 
+    # prices denominated in nb of quote tokens per base_token
     local price0
     local price1
 
     if is_base_token0 == TRUE:
-        let (res0) = Math64x61_div(pair1.reserve1, pair1.reserve0)
-        let (res1) = Math64x61_div(pair2.reserve1, pair2.reserve0)
+        let (res0) = Math64x61_div(pair1.reserve0, pair1.reserve1)
+        let (res1) = Math64x61_div(pair2.reserve0, pair2.reserve1)
         price0 = res0
         price1 = res1
     else:
-        let (res0) = Math64x61_div(pair1.reserve0, pair1.reserve1)
-        let (res1) = Math64x61_div(pair2.reserve0, pair2.reserve1)
+        let (res0) = Math64x61_div(pair1.reserve1, pair1.reserve0)
+        let (res1) = Math64x61_div(pair2.reserve1, pair2.reserve0)
         price0 = res0
         price1 = res1
     end
@@ -89,6 +106,7 @@ func get_ordered_pairs{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_c
 
     let (is_le_price0_price1) = is_le(price0, price1)
     let (converted_price) = Math64x61_toFelt(price0)
+
     if is_le_price0_price1 == TRUE:
         assert lower_pair = pair1
         assert higher_pair = pair2
@@ -97,17 +115,21 @@ func get_ordered_pairs{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_c
         assert higher_pair = pair1
     end
 
+    # Parameters a1 b1, a2 b2 such that
+    # (a1,b1) pool with the lowest price denominated in quote tokens (1b = xxx a)
+    # (token_a1,token_a2) are the base tokens in the pools
+
     local ordered_reserves : OrderedReserves
     if is_base_token0 == TRUE:
-        ordered_reserves.a1 = lower_pair.reserve1
-        ordered_reserves.b1 = lower_pair.reserve0
-        ordered_reserves.a2 = higher_pair.reserve1
-        ordered_reserves.b2 = higher_pair.reserve0
-    else:
         ordered_reserves.a1 = lower_pair.reserve0
         ordered_reserves.b1 = lower_pair.reserve1
         ordered_reserves.a2 = higher_pair.reserve0
         ordered_reserves.b2 = higher_pair.reserve1
+    else:
+        ordered_reserves.a1 = lower_pair.reserve1
+        ordered_reserves.b1 = lower_pair.reserve0
+        ordered_reserves.a2 = higher_pair.reserve1
+        ordered_reserves.b2 = higher_pair.reserve0
     end
 
     return (lower_pair, higher_pair, ordered_reserves)
@@ -132,12 +154,6 @@ func get_base_token{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_chec
     end
 end
 
-# func get_profit{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-#     pair1 : Pair, pair2 : Pair
-# ) -> (profit : felt, base_token : felt):
-#
-# end
-
 ##
 # Given 2 pool pairs characterized by reserve0 and reserve1, returns the optimal amount of token to use for arbitrage.
 ##
@@ -148,6 +164,7 @@ func calc_optimal_amount{range_check_ptr}(ordered_reserves : OrderedReserves) ->
     # If we run the calculation with the reserves amount, we'll have problems with overflow
     alloc_locals  # if removed = divider ref refoked ?
 
+    # #TODO check if there's another way than using a divider ?
     let (divider) = find_reserve_divider(ordered_reserves)
     let (a1, _) = unsigned_div_rem(ordered_reserves.a1, divider)
     let (a2, _) = unsigned_div_rem(ordered_reserves.a2, divider)
@@ -161,6 +178,7 @@ func calc_optimal_amount{range_check_ptr}(ordered_reserves : OrderedReserves) ->
 
     # solve equation
     let (x1, x2) = solve_quadratic_equation(a, b, c)
+
     let x1 = x1 * divider
     let x2 = x2 * divider
     let (best_amt) = lowest_valid_root(x1, x2, ordered_reserves.b1, ordered_reserves.b2)
@@ -239,7 +257,6 @@ end
 func solve_quadratic_equation{range_check_ptr}(a : felt, b : felt, c : felt) -> (
     x1 : felt, x2 : felt
 ):
-    alloc_locals
     tempvar delta = (b * b) - 4 * (a * c)
     # Verify that the equation has real roots
     with_attr error_message("Equation doesn't have a root in reals"):
@@ -248,8 +265,8 @@ func solve_quadratic_equation{range_check_ptr}(a : felt, b : felt, c : felt) -> 
 
     let (sqrt_delta) = sqrt(delta)
 
-    local x1 = ((-b) - sqrt_delta) / (2 * a)
-    local x2 = ((-b) + sqrt_delta) / (2 * a)
+    tempvar x1 = ((-b) - sqrt_delta) / (2 * a)
+    tempvar x2 = ((-b) + sqrt_delta) / (2 * a)
     return (x1, x2)
 end
 
@@ -283,4 +300,42 @@ func lowest_valid_root{range_check_ptr}(x1, x2, b1, b2) -> (x : felt):
     else:
         return (x2)
     end
+end
+
+@view
+func get_amount_in{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    amount_out : felt, reserve_in : felt, reserve_out : felt
+) -> (res : felt):
+    assert_nn(amount_out)
+    assert_not_zero(amount_out)
+
+    assert_nn(reserve_in)
+    assert_not_zero(reserve_in)
+
+    assert_nn(reserve_out)
+    assert_not_zero(reserve_out)
+
+    tempvar numerator = (reserve_in * amount_out)
+    let denominator = reserve_out - amount_out
+    let (amount_in, _) = unsigned_div_rem(numerator, denominator)
+    return (amount_in)
+end
+
+@view
+func get_amount_out{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    amount_in : felt, reserve_in : felt, reserve_out : felt
+) -> (res : felt):
+    assert_nn(amount_in)
+    assert_not_zero(amount_in)
+
+    assert_nn(reserve_in)
+    assert_not_zero(reserve_in)
+
+    assert_nn(reserve_out)
+    assert_not_zero(reserve_out)
+
+    let numerator = reserve_out * amount_in
+    let denominator = reserve_in + amount_in
+    let (amount_out, _) = unsigned_div_rem(numerator, denominator)
+    return (amount_out)
 end

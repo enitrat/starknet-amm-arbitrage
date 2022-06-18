@@ -29,13 +29,16 @@ $(a + \Delta a) * (b - \Delta b) = a * b$
 
 ![](img.png)
 
+What we want to do is sell $y_1$ base tokens on pair0 to amount $x$ of quote tokens, swap x quote tokens on pair1 to get $y_2$ base tokens, and keep $y_2 - y_1$ as profit
+
 We can write this as :
 
-$ \Delta a_1 = \frac{ \Delta b_1*a_1}  {b_1 - \Delta b_1}$, $ \Delta a_1$ being the required token0 input to get x
+$ \Delta a_1 = \frac{ \Delta b_1*a_1}  {b_1 - \Delta b_1}$,
 
-$ \Delta a_2 = \frac{ \Delta b_2*a_2}  {b_1 + \Delta b_2}$  $ \Delta a_2$ being the maximum output given x token1 as input
+$ \Delta a_2 = \frac{ \Delta b_2*a_2}  {b_1 + \Delta b_2}$
 
-We want to have $\Delta b_1 = \Delta b_2$ since we don't want to keep quote tokens after arbitraging.
+
+We have $\Delta b_1 = \Delta b_2 = x$ being the amount of quote tokens.
 
 The profit function is :
 $ f(x) = \Delta a_2 - \Delta a_1 = \frac{ a_2 \cdot x} {b_2 + x} - \frac{ a_1 \cdot x} {b_1 - x}$
@@ -65,9 +68,7 @@ $0 < x < b_1$
 
 $ x < b_2$
 
-$x$ being the amount of token0 that we need to sell on $Pair_0$ to get y1 token0, 
-sell these token0 on $Pair_1$ to get y2 token1 and the profit is the y1-y2.
-
+With $x$ being the amount of quote tokens that we need to get to maximze the arbitage gains.
 ## Code
 
 I used the awesome [`Protostar`](https://docs.swmansion.com/protostar/) toolchain to develop this project.

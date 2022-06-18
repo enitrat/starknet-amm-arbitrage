@@ -40,9 +40,9 @@ func __setup__{syscall_ptr : felt*, range_check_ptr}():
     # Fill AMM user balance
 
     let (balance_a_1) = parse_units(10, 18)  # 10 / 5000 total
-    let (balance_b_1) = parse_units(10, 16)  # 0.01 / 10 total
-    let (balance_a_2) = parse_units(10, 18)  # 10 / 5000 total
-    let (balance_b_2) = parse_units(10, 16)  # 0.01 / 10 total
+    let (balance_b_1) = parse_units(10, 17)  # 0.01 / 10 total
+    let (balance_a_2) = parse_units(10, 18)  # 10 / 6000 total
+    let (balance_b_2) = parse_units(10, 17)  # 0.01 / 10 total
 
     IAmm.set_user_balance(amm1, token0, balance_a_1)
     IAmm.set_user_balance(amm1, token1, balance_b_1)
@@ -85,9 +85,10 @@ func test_arbitrage{syscall_ptr : felt*, range_check_ptr}():
     let ordered_reserves = OrderedReserves(a1, b1, a2, b2)
 
     let (optimal_amt) = calc_optimal_amount(ordered_reserves)
+    %{ print(ids.optimal_amt*10**-18) %}
 
     # TODO Implement a method to dynamically check which reserve is smaller
-    # Here, we know that we'll do B=>A in pool2, A=>B in pool1 and sell init_b in pool2 to keep the difference
+    # Here, we know that we'll do B=>A in pool2, A=>B in pool1 and  to keep the difference
     let (balance_a) = IAmm.get_user_balance(amm1, token0)
     let (balance_b) = IAmm.get_user_balance(amm1, token1)
     local swap_amount : felt
@@ -98,17 +99,20 @@ func test_arbitrage{syscall_ptr : felt*, range_check_ptr}():
         swap_amount = balance_b
     end
 
+    %{ print(ids.swap_amount*10**-18) %}
+
     # Sell swap_amount b tokens to get a tokens
-    let (temp_a) = IAmm.swap(amm2, token1, token0, swap_amount)
+    let (temp_quote) = IAmm.swap(amm2, token1, token0, swap_amount)
     # Sell all received a_tokens to get b_tokens
-    let (temp_b) = IAmm.swap(amm1, token0, token1, temp_a)
+    let (total_base) = IAmm.swap(amm1, token0, token1, temp_quote)
     # Repay first swap and keep the difference
-    IAmm.swap(amm2, token1, token0, swap_amount)
-    let profit_b = temp_b - swap_amount
-    let (profit_percent_e3, _) = unsigned_div_rem((profit_b) * 100 * 10 ** 3, (balance_b))
-    assert_in_range(profit_percent_e3, 17400, 17500)
-    %{ print(" Profit : ", ids.profit_percent_e3, "e-3 %") %}
-    %{ print(" Profit : ", ids.profit_b*10**-16, "tokens ") %}
+    %{ print(ids.temp_quote*10**-18) %}
+    %{ print(ids.total_base*10**-18) %}
+    let profit_b = total_base - swap_amount
+    # let (profit_percent_e3, _) = unsigned_div_rem((profit_b) * 100 * 10 ** 3, (balance_b))
+    # assert_in_range(profit_percent_e3, 17400, 17500)
+    %{ print(" Profit % : ", ids.profit_b * 100 /ids.swap_amount , "%") %}
+    %{ print(" Profit : ", ids.profit_b*10**-18, "tokens ") %}
 
     return ()
 end
