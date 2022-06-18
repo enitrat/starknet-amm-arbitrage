@@ -1,0 +1,48 @@
+{
+  "test_get_ordered_tokens": {
+    "tests": [
+      {
+        "description": "Price > 0, order 1, base is token1",
+        "inputs": [42, 1337, 5000, 10, 6000, 10],
+        "inputs_len": 6,
+        "outputs": [1, 5000, 10, 6000, 10],
+        "outputs_len": 5
+      },
+      {
+        "description": "Price > 0, order 2, base is token1",
+        "inputs": [42, 1337, 6000, 10, 5000, 10],
+        "inputs_len": 6,
+        "outputs": [2, 5000, 10, 6000, 10],
+        "outputs_len": 5
+      },
+      {
+        "description": "Price > 0, base is token0",
+        "inputs": [1337, 999999, 10, 6000, 10, 5000],
+        "inputs_len": 6,
+        "outputs": [2, 5000, 10, 6000, 10],
+        "outputs_len": 5
+      },
+      {
+        "description": "Price < 0, equal remainders",
+        "inputs": [42, 1337, 10, 5000, 10, 6000],
+        "inputs_len": 6,
+        "outputs": [1, 10, 6000, 10, 5000],
+        "outputs_len": 5
+      },
+      {
+        "description": "Price < 0, non-equal remainders",
+        "inputs": [42, 1337, 100, 5000, 10, 6000],
+        "inputs_len": 6,
+        "outputs": [2, 10, 6000, 100, 5000],
+        "outputs_len": 5
+      },
+      {
+        "description": "One price > 0, one price <0",
+        "inputs": [1337, 999999, 1000, 10, 10, 6000],
+        "inputs_len": 6,
+        "outputs": [1, 10, 1000, 6000, 10],
+        "outputs_len": 5
+      }
+    ]
+  }
+}

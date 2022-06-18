@@ -15,47 +15,47 @@ const token0 = 42
 const token1 = 1337
 const token_high = 999999
 
-# @view
-# func __setup__{syscall_ptr : felt*, range_check_ptr}():
-#     alloc_locals
-#     # Deploy AMM
-#     %{
-#         context.amm1 = deploy_contract("./src/mock_amm.cairo").contract_address
-#         context.amm2 = deploy_contract("./src/mock_amm.cairo").contract_address
-#     %}
-#     local amm1
-#     local amm2
-#     %{ ids.amm1 = context.amm1 %}
-#     %{ ids.amm2 = context.amm2 %}
+@view
+func __setup__{syscall_ptr : felt*, range_check_ptr}():
+    alloc_locals
+    # Deploy AMM
+    %{
+        context.amm1 = deploy_contract("./src/mock_amm.cairo").contract_address
+        context.amm2 = deploy_contract("./src/mock_amm.cairo").contract_address
+    %}
+    local amm1
+    local amm2
+    %{ ids.amm1 = context.amm1 %}
+    %{ ids.amm2 = context.amm2 %}
 
-# let (a1) = parse_units(5000, 18)
-#     let (b1) = parse_units(10, 18)
-#     let (a2) = parse_units(6000, 18)
-#     let (b2) = parse_units(10, 18)
+    let (a1) = parse_units(5000, 18)
+    let (b1) = parse_units(10, 18)
+    let (a2) = parse_units(6000, 18)
+    let (b2) = parse_units(10, 18)
 
-# # Fill AMM reserves with arbitrage opportunities
-#     IAmm.set_reserves(amm1, token0, token1, a1, b1)
-#     IAmm.set_reserves(amm2, token0, token1, a2, b2)
+    # Fill AMM reserves with arbitrage opportunities
+    IAmm.set_reserves(amm1, token0, token1, a1, b1)
+    IAmm.set_reserves(amm2, token0, token1, a2, b2)
 
-# # Fill AMM user balance
+    # Fill AMM user balance
 
-# let (balance_a_1) = parse_units(10, 18)  # 10 / 5000 total
-#     let (balance_b_1) = parse_units(10, 16)  # 0.01 / 10 total
-#     let (balance_a_2) = parse_units(10, 18)  # 10 / 5000 total
-#     let (balance_b_2) = parse_units(10, 16)  # 0.01 / 10 total
+    let (balance_a_1) = parse_units(10, 18)  # 10 / 5000 total
+    let (balance_b_1) = parse_units(10, 16)  # 0.01 / 10 total
+    let (balance_a_2) = parse_units(10, 18)  # 10 / 5000 total
+    let (balance_b_2) = parse_units(10, 16)  # 0.01 / 10 total
 
-# IAmm.set_user_balance(amm1, token0, balance_a_1)
-#     IAmm.set_user_balance(amm1, token1, balance_b_1)
-#     IAmm.set_user_balance(amm2, token0, balance_a_2)
-#     IAmm.set_user_balance(amm2, token1, balance_b_2)
+    IAmm.set_user_balance(amm1, token0, balance_a_1)
+    IAmm.set_user_balance(amm1, token1, balance_b_1)
+    IAmm.set_user_balance(amm2, token0, balance_a_2)
+    IAmm.set_user_balance(amm2, token1, balance_b_2)
 
-# # Deploy Arbitrageur
-#     %{ context.arbitrageur = deploy_contract("./src/Arbitrageur.cairo").contract_address %}
-#     # local arbitrageur
-#     # %{ ids.arbitrageur= context.arbitrageur %}
-#     # IArbitrageur.add_base_token(arbitrageur, token1)  # We want to arbitrage agains token1
-#     return ()
-# end
+    # Deploy Arbitrageur
+    %{ context.arbitrageur = deploy_contract("./src/Arbitrageur.cairo").contract_address %}
+    # local arbitrageur
+    # %{ ids.arbitrageur= context.arbitrageur %}
+    # IArbitrageur.add_base_token(arbitrageur, token1)  # We want to arbitrage agains token1
+    return ()
+end
 
 func get_contract_addresses() -> (amm1 : felt, amm2 : felt, arbitrageur : felt):
     tempvar amm1
@@ -66,8 +66,6 @@ func get_contract_addresses() -> (amm1 : felt, amm2 : felt, arbitrageur : felt):
     %{ ids.arbitrageur= context.arbitrageur %}
     return (amm1, amm2, arbitrageur)
 end
-
-
 
 @view
 func test_arbitrage{syscall_ptr : felt*, range_check_ptr}():
@@ -110,7 +108,7 @@ func test_arbitrage{syscall_ptr : felt*, range_check_ptr}():
     let (profit_percent_e3, _) = unsigned_div_rem((profit_b) * 100 * 10 ** 3, (balance_b))
     assert_in_range(profit_percent_e3, 17400, 17500)
     %{ print(" Profit : ", ids.profit_percent_e3, "e-3 %") %}
-    %{ print(" Profit : ", ids.profit_b*10**-18, "tokens ") %}
+    %{ print(" Profit : ", ids.profit_b*10**-16, "tokens ") %}
 
     return ()
 end

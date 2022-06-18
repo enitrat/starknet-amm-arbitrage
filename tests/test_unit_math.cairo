@@ -7,6 +7,7 @@ from src.Arbitrageur import (
     _find_divider,
     find_reserve_divider,
 )
+from starkware.cairo.common.alloc import alloc
 
 from lib.utils import parse_units
 from lib.DataTypes import Pair, OrderedReserves
@@ -20,23 +21,66 @@ const token1 = 1337
 @view
 func test_quadratic_solving_ok{range_check_ptr}():
     alloc_locals
-    local vars_1 : (felt, felt, felt) = (1, -2, 1)
-    let (x1, x2) = solve_quadratic_equation(vars_1[0], vars_1[1], vars_1[2])
-    assert x1 = 1
-    assert x2 = 1
-
-    local vars_2 : (felt, felt, felt) = (1, -18, 81)
-    let (x1, x2) = solve_quadratic_equation(vars_2[0], vars_2[1], vars_2[2])
-    assert x1 = 9
-    assert x2 = 9
-
-    local vars_3 : (felt, felt, felt) = (-40000000, 160000000, 200000000)
-    # %{ expect_revert(error_message="Equation doesn't have a root in reals") %}
-    let (x1, x2) = solve_quadratic_equation(vars_3[0], vars_3[1], vars_3[2])
-    assert x1 = 5
-    assert x2 = -1
+    local inputs : felt*
+    local tests_len : felt
+    %{
+        SCENARIO_PATH = "./tests/scenarios/scenario_unit_math.json"
+        import json
+        f = open(SCENARIO_PATH, "r")
+        my_tests = json.load(f)
+        test_case = my_tests["test_quadratic_solving_ok"]
+        tests = test_case["tests"]
+        ids.tests_len = len(tests)
+    %}
+    _test_quadratic_solving_ok(tests_len)
     return ()
 end
+
+func _test_quadratic_solving_ok{range_check_ptr}(tests_len : felt):
+    alloc_locals
+    if tests_len == 0:
+        return ()
+    end
+    local inputs : felt*
+    local outputs : felt*
+    %{
+        test_id = len(tests)-ids.tests_len
+        ids.inputs = inputs = segments.add()
+        PRIME = 2 ** 251 + 17 * 2 ** 192 + 1
+        for i,val in enumerate(tests[test_id]['inputs']):
+            memory[inputs+i] = val % PRIME
+
+        ids.outputs=outputs=segments.add()
+        for i,val in enumerate(tests[test_id]['outputs']):
+            memory[outputs+i] = val % PRIME
+    %}
+
+    let (x1, x2) = solve_quadratic_equation(inputs[0], inputs[1], inputs[2])
+    assert x1 = [outputs]
+    assert x2 = [outputs + 1]
+    return _test_quadratic_solving_ok(tests_len - 1)
+end
+
+# @view
+# func test_quadratic_solving_ok{range_check_ptr}():
+#     alloc_locals
+#     local vars_1 : (felt, felt, felt) = (1, -2, 1)
+#     let (x1, x2) = solve_quadratic_equation(vars_1[0], vars_1[1], vars_1[2])
+#     assert x1 = 1
+#     assert x2 = 1
+
+# local vars_2 : (felt, felt, felt) = (1, -18, 81)
+#     let (x1, x2) = solve_quadratic_equation(vars_2[0], vars_2[1], vars_2[2])
+#     assert x1 = 9
+#     assert x2 = 9
+
+# local vars_3 : (felt, felt, felt) = (-40000000, 160000000, 200000000)
+#     # %{ expect_revert(error_message="Equation doesn't have a root in reals") %}
+#     let (x1, x2) = solve_quadratic_equation(vars_3[0], vars_3[1], vars_3[2])
+#     assert x1 = 5
+#     assert x2 = -1
+#     return ()
+# end
 
 @view
 func test_best_amount_ok{range_check_ptr}():

@@ -1,0 +1,24 @@
+{
+  "test_quadratic_solving_ok": {
+    "tests": [
+      {
+        "inputs": [1, -2, 1],
+        "inputs_len": 3,
+        "outputs": [1, 1],
+        "outputs_len": 2
+      },
+      {
+        "inputs": [1, -18, 81],
+        "inputs_len": 3,
+        "outputs": [9, 9],
+        "outputs_len": 2
+      },
+      {
+        "inputs": [-40000000, 160000000, 200000000],
+        "inputs_len": 3,
+        "outputs": [5, -1],
+        "outputs_len": 2
+      }
+    ]
+  }
+}
