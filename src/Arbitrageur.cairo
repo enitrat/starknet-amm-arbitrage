@@ -42,6 +42,7 @@ func remove_base_token{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_c
     return ()
 end
 
+@external
 func get_profit{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
     pair1 : Pair, pair2 : Pair
 ) -> (net_profit : felt, profit_rate : felt):

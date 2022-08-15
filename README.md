@@ -33,22 +33,22 @@ What we want to do is sell $y_1$ base tokens on pair0 to amount $x$ of quote tok
 
 We can write this as :
 
-$ \Delta a_1 = \frac{ \Delta b_1*a_1}  {b_1 - \Delta b_1}$,
+$\Delta a_1 = \frac{ \Delta b_1*a_1}  {b_1 - \Delta b_1}$,
 
-$ \Delta a_2 = \frac{ \Delta b_2*a_2}  {b_1 + \Delta b_2}$
+$\Delta a_2 = \frac{ \Delta b_2*a_2}  {b_1 + \Delta b_2}$
 
 
 We have $\Delta b_1 = \Delta b_2 = x$ being the amount of quote tokens.
 
 The profit function is :
-$ f(x) = \Delta a_2 - \Delta a_1 = \frac{ a_2 \cdot x} {b_2 + x} - \frac{ a_1 \cdot x} {b_1 - x}$
+$f(x) = \Delta a_2 - \Delta a_1 = \frac{ a_2 \cdot x} {b_2 + x} - \frac{ a_1 \cdot x} {b_1 - x}$
 
 We want to maximize this function so we need it's derivative :
-$ \frac{d f(x)}{d x} = \frac{a_2 \cdot b_2}{(b_2 + x)ˆ{2}} - \frac{a_1 \cdot b_1}{(b_1 - x)ˆ{2}}$
+$\frac{d f(x)}{d x} = \frac{a_2 \cdot b_2}{(b_2 + x)ˆ{2}} - \frac{a_1 \cdot b_1}{(b_1 - x)ˆ{2}}$
 
 
 Which can be simplified in :
-$ f'(x) = (a_1b_1 - a_2b_2)xˆ{2} + 2b_1b_1(a_1+a_2)x + b_1b_2(a_1b_2-a_2b_1)$
+$f'(x) = (a_1b_1 - a_2b_2)xˆ{2} + 2b_1b_1(a_1+a_2)x + b_1b_2(a_1b_2-a_2b_1)$
 
 Let :
 
@@ -62,11 +62,11 @@ We recognize a basic quadratic equation $f'(x) = axˆ{2}+bx+c$ that we can easil
 
 The solution will be $x$ such that :
 
-$  x = \frac{-b \pm \sqrt{b^2-4ac}}{2a} $
+$x = \frac{-b \pm \sqrt{b^2-4ac}}{2a}$
 
 $0 < x < b_1$
 
-$ x < b_2$
+$x < b_2$
 
 With $x$ being the amount of quote tokens that we need to get to maximze the arbitage gains.
 ## Code
